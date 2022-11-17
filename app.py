@@ -7,7 +7,9 @@ from io import BytesIO
 from PIL import Image
 import os
 
-app = Flask(__name__)
+from ffmpy import FFmpeg as mpy
+
+app = Flask(__name__, static_folder='static', )
 
 
 @app.route('/')
@@ -95,20 +97,75 @@ def upload_face():
     img.save(path)
     read_face(name, path)
     return 'success add'
+
+
 @app.route('/add_audio', methods=['POST'])
 def upload_audio():
-    data = request.form['audioData']
+    file = request.files.get('audoData')
+    file.save('tmp.mp3')
+    trans_to_wav('tmp.mp3')
     return 'success add audio'
+
+
+@app.route('/upload_audio1', methods=['POST'])
+def upload_audio1():
+    file = request.files.get('audioData')
+    file.save('tmp.mp3')
+    trans_to_wav('tmp.mp3')
+    return 'success add audio'
+
+
+@app.route('/upload_name', methods=['POST'])
+def upload_name_audio():
+    name = request.form['name']
+    from infer_recognition import register
+    register('tmp.wav', name)
+    return 'success upload name'
+
+
+@app.route('/upload_audio2', methods=['POST'])
+def upload_audio2():
+    file = request.files.get('audioData')
+    file.save('tmp.mp3')
+    trans_to_wav('tmp.mp3')
+    from infer_recognition import recognition
+    name, p = recognition('tmp.mp3')
+    if p < 0.5:
+        name = '未在音频库'
+    return name
+
+
+def trans_to_wav(mp3_path):
+    try:
+        os.remove('tmp.wav')
+    except Exception as e:
+        print(e)
+    '''
+    格式转换格式
+    :param mp3_file:
+    :param wav_folder:
+    :return:
+    '''
+    wav_path = 'tmp.wav'
+    # 格式化文件
+    cmder = '-f wav -ac 1 -ar 16000'
+    # 创建转换器对象
+    mpy_obj = mpy(
+        executable='ffmpeg.exe',
+        inputs={
+            mp3_path: None
+        },
+        outputs={
+            wav_path: cmder
+        }
+    )
+    mpy_obj.run()
+
 
 @app.route('/audio')
 def audio():
     return render_template("audio.html", )
 
-
-
-
-def audio():
-    return render_template("audio.html", )
 
 if __name__ == "__main__":
     read_all_face()
