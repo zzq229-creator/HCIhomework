@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+
+<head>
+    <meta charset="utf-8">
+    <title>camera</title>
+    <style>
+        .container {
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .video {
+            width: 640;
+            height: 480;
+            position: fixed;
+            top: 100;
+            left: 100;
+        }
+
+        .canvas {
+            width: 640;
+            height: 480;
+            position: fixed;
+            top: 100;
+            left: 100;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <button id="recognize" class="btn btn-success"><i class="fa fa-camera"></i> 识别</button>
+    <button id="add" class="btn btn-success"><i class="fa fa-camera"></i> 添加</button>
+
+    <div class="container">
+        <video class="video" id="video" width="640" height="480" autoplay></video>
+        <canvas class="canvas" id="canvas" width="640" height="480"></canvas>
+
+    </div>
+    <div class="container">
+            <ul>
+                    <li>你好</li>
+                </ul>
+    </div>
+
+    <script>
+        function sleep(time) {
+            return new Promise(function (resolve) {
+                setTimeout(resolve, time);
+            });
+        }
+        window.onload = function () {
+            //访问用户媒体设备的兼容方法
+            function getUserMedia(constraints, success, error) {
+                if (navigator.mediaDevices.getUserMedia) {
+                    //最新的标准API
+                    navigator.mediaDevices.getUserMedia(constraints).then(success).catch(error);
+                } else if (navigator.webkitGetUserMedia) {
+                    //webkit核心浏览器
+                    navigator.webkitGetUserMedia(constraints, success, error)
+                } else if (navigator.mozGetUserMedia) {
+                    //firfox浏览器
+                    navigator.mozGetUserMedia(constraints, success, error);
+                } else if (navigator.getUserMedia) {
+                    //旧版API
+                    navigator.getUserMedia(constraints, success, error);
+                }
+            }
+
+            let video = document.getElementById('video');
+            let canvas = document.getElementById('canvas');
+            let context = canvas.getContext('2d');
+            function success(stream) {
+                //兼容webkit核心浏览器
+                //let CompatibleURL = window.URL || window.webkitURL;
+                //将视频流设置为video元素的源
+                // console.log(stream);
+                //video.src = CompatibleURL.createObjectURL(stream);
+                video.srcObject = stream;
+                video.play();
+            }
+            function error(error) {
+                console.log(`访问用户媒体设备失败${error.name}, ${error.message}`);
+            }
+
+            if (navigator.mediaDevices.getUserMedia || navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    console.log("enumerateDevices() not supported.");
+                    return;
+                }
+                // 列出摄像头和麦克风
+                var exArray = [];
+                navigator.mediaDevices.enumerateDevices()
+                    .then(function (devices) {
+                        devices.forEach(function (device) {
+                            // console.log(device.kind + ": " + device.label +
+                            // " id = " + device.deviceId);
+                            if (device.kind == "videoinput") {
+                                // alert(device.label);
+                                exArray.push(device.deviceId);
+                            }
+                        });
+                        var mediaOpts = { video: { width: 420, height: 120 } };
+                        var mediaOpts =
+                        {
+                            video:
+                            {
+                                deviceId: { exact: exArray[1] }
+                            }
+                        };
+                        //调用用户媒体设备, 访问摄像头
+                        getUserMedia(mediaOpts, success, error);
+                    })
+                    .catch(function (err) {
+                        console.log(err.name + ": " + err.message);
+                    });
+
+            } else {
+                alert('不支持访问用户媒体');
+            }
+
+            document.getElementById('add').addEventListener('click', async function () {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(video, 0, 0, 640, 480);
+                var image = new Image();
+                image.src = canvas.toDataURL("image/jpeg");
+                // console.log(image.src);
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                var facename = prompt('请输入您的姓名');
+                if (facename !== null && facename != '') {
+                    $.ajax({
+                        type: 'post',
+                        url: '/add',
+                        async: true,
+                        data: { name: facename, image: image.src },
+                        success: function (res) {
+                            alert('添加成功');
+                        }
+                    })
+                }
+
+            });
+            (async function () {
+                for (var i = 0; ;i++) {
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                    context.drawImage(video, 0, 0, 640, 480);
+                    var image = new Image();
+                    image.src = canvas.toDataURL("image/jpeg");
+                    // console.log(image.src);
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+
+                    $(function () {
+                        // 直接发起$.post(URL, data, [callback])
+                        $.ajax({
+                            type: 'post',
+                            url: '/reco_face',
+                            async: true,
+                            data: { image: image.src },
+                            success: function (res) {
+                                console.log(res);
+                                if (res.name.length > 0) {
+                                    pos = res.face_locations[0];
+                                    facename = res.name[0];
+
+                                    var top = pos[1], right = pos[0], bottom = pos[3], left = pos[2];
+
+                                    ul = document.getElementsByTagName("ul")[0];  //获取列表结构
+                                    var lis = ul.getElementsByTagName("li");  //获取列表结构的所有列表项
+                                    lis[0].innerText = facename;  //替换文本
+                                    // context.moveTo(top, left);
+                                    // context.lineTo(top, right);
+                                    // context.stroke();
+
+                                    // context.moveTo(bottom, left);
+                                    // context.lineTo(bottom, right);
+                                    // context.stroke();
+
+                                    // context.moveTo(top, left);
+                                    // context.lineTo(bottom, left);
+                                    // context.stroke();
+
+                                    // context.moveTo(top, right);
+                                    // context.lineTo(bottom, right);
+                                    // context.stroke();
+                                }
+
+                            }
+                        })
+                    })
+                    await sleep(1000);
+                }
+            })();
+        }
+    </script>
+</body>
+
+</html>
