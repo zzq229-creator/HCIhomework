@@ -6,8 +6,12 @@ import base64
 from io import BytesIO
 from PIL import Image
 import os
-
+import cv2
 from ffmpy import FFmpeg as mpy
+
+from FaceMaskDetection.detect_face import detectionmaskface
+
+# 检测有多少张人脸（支持戴口罩识别）
 
 app = Flask(__name__, static_folder='static', )
 
@@ -22,6 +26,9 @@ def index():
 def camera():
     return render_template("camera.html", )  # 加入变量传递
 
+@app.route('/tot')
+def functot():
+    return render_template("tot.html", )  # 加入变量传递
 
 # You can change this to any folder on your system
 
@@ -80,12 +87,25 @@ def detect_faces_in_image(img):  # numpy * * 3
     return res
 
 
+@app.route('/detect_mask_face', methods=['POST'])
+def detect_mask_face():
+    img = request.form['image']
+    img = base642PIL(img)
+
+    img = np.array(img)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    res = detectionmaskface(img)
+    print('mask' + str(res))
+    return str(res)
+
+
 @app.route('/reco_face', methods=['POST'])
 def recognize_image():
     img = request.form['image']
     img = base642PIL(img)
     img = np.array(img)
-    return detect_faces_in_image(img)
+    res = detect_faces_in_image(img)
+    return res
 
 
 @app.route('/add', methods=['POST'])

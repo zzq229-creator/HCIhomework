@@ -44,7 +44,7 @@
     <div class="container">
         <ul>
             <li>你好</li>
-            </ul>
+        </ul>
     </div>
 
     <script>
@@ -145,7 +145,7 @@
 
             });
             (async function () {
-                for (var i = 0; ;i++) {
+                for (var i = 0; ; i++) {
                     context.clearRect(0, 0, canvas.width, canvas.height);
                     context.drawImage(video, 0, 0, 640, 480);
                     var image = new Image();
@@ -154,42 +154,42 @@
                     context.clearRect(0, 0, canvas.width, canvas.height);
 
                     $(function () {
-                        // 直接发起$.post(URL, data, [callback])
                         $.ajax({
                             type: 'post',
-                            url: '/reco_face',
+                            url: '/detect_mask_face',
                             async: true,
-                            data: { image: image.src },
+                            data: { image: image.src },// image.src base64
                             success: function (res) {
                                 console.log(res);
-                                if (res.name.length > 0) {
-                                    pos = res.face_locations[0];
-                                    facename = res.name[0];
+                                if (Number(res) > 0) {
+                                    $.ajax({
+                                        type: 'post',
+                                        url: '/reco_face',
+                                        async: true,
+                                        data: { image: image.src },// image.src base64
+                                        success: function (res) {
+                                            console.log(res);
+                                            if (res.name.length > 0) {
+                                                pos = res.face_locations[0];
+                                                facename = res.name[0];
 
-                                    var top = pos[1], right = pos[0], bottom = pos[3], left = pos[2];
+                                                var top = pos[1], right = pos[0], bottom = pos[3], left = pos[2];
 
+                                                ul = document.getElementsByTagName("ul")[0];  //获取列表结构
+                                                var lis = ul.getElementsByTagName("li");  //获取列表结构的所有列表项
+                                                lis[0].innerText = facename;  //替换文本
+                                            }
+                                        }
+                                    })
+                                }
+                                else {
                                     ul = document.getElementsByTagName("ul")[0];  //获取列表结构
                                     var lis = ul.getElementsByTagName("li");  //获取列表结构的所有列表项
-                                    lis[0].innerText = facename;  //替换文本
-                                    // context.moveTo(top, left);
-                                    // context.lineTo(top, right);
-                                    // context.stroke();
-
-                                    // context.moveTo(bottom, left);
-                                    // context.lineTo(bottom, right);
-                                    // context.stroke();
-
-                                    // context.moveTo(top, left);
-                                    // context.lineTo(bottom, left);
-                                    // context.stroke();
-
-                                    // context.moveTo(top, right);
-                                    // context.lineTo(bottom, right);
-                                    // context.stroke();
+                                    lis[0].innerText = "未检测到人脸";
                                 }
-
                             }
                         })
+
                     })
                     await sleep(1000);
                 }

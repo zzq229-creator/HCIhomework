@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+
+<head>
+    <meta charset="utf-8">
+    <title>camera</title>
+    <style>
+        .container {
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .video {
+            width: 640;
+            height: 480;
+            position: fixed;
+            top: 100;
+            left: 100;
+        }
+
+        .canvas {
+            width: 640;
+            height: 480;
+            position: fixed;
+            top: 100;
+            left: 100;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+
+<body>
+
+    <div>
+        <audio controls autoplay></audio>
+        <!-- <input onclick="startRecording()" type="button" value="录音" /> -->
+        <!-- <input onclick="stopRecording()" type="button" value="停止" /> -->
+        <input onclick="playRecording()" type="button" value="播放" />
+        <!-- <input onclick="uploadAudio1()" type="button" value="注册" /> -->
+        <!-- <input onclick="uploadAudio2()" type="button" value="识别" /> -->
+        <!-- <input onclick="cancelAudio()" type="button" value="取消" /> -->
+    </div>
+
+    <button id="add" class="btn btn-success"><i class="fa fa-camera"></i> 添加</button>
+
+    <div class="container">
+        <video class="video" id="video" width="640" height="480" autoplay></video>
+        <canvas class="canvas" id="canvas" width="640" height="480"></canvas>
+
+    </div>
+    <div class="container">
+        <ul>
+            <li>你好</li>
+        </ul>
+    </div>
+
+    <script type="text/javascript" src="{{ url_for('static',filename='record.js') }}"></script>
+
+    <script>
+        function sleep(time) {
+            return new Promise(function (resolve) {
+                setTimeout(resolve, time);
+            });
+        }
+        window.onload = function () {
+            //访问用户媒体设备的兼容方法
+            function getUserMedia(constraints, success, error) {
+                if (navigator.mediaDevices.getUserMedia) {
+                    //最新的标准API
+                    navigator.mediaDevices.getUserMedia(constraints).then(success).catch(error);
+                } else if (navigator.webkitGetUserMedia) {
+                    //webkit核心浏览器
+                    navigator.webkitGetUserMedia(constraints, success, error)
+                } else if (navigator.mozGetUserMedia) {
+                    //firfox浏览器
+                    navigator.mozGetUserMedia(constraints, success, error);
+                } else if (navigator.getUserMedia) {
+                    //旧版API
+                    navigator.getUserMedia(constraints, success, error);
+                }
+            }
+
+            var video = document.getElementById('video');
+            var canvas = document.getElementById('canvas');
+            var context = canvas.getContext('2d');
+            function success(stream) {
+                //兼容webkit核心浏览器
+                //let CompatibleURL = window.URL || window.webkitURL;
+                //将视频流设置为video元素的源
+                // console.log(stream);
+                //video.src = CompatibleURL.createObjectURL(stream);
+                video.srcObject = stream;
+                video.play();
+            }
+            function error(error) {
+                console.log(`访问用户媒体设备失败${error.name}, ${error.message}`);
+            }
+
+            if (navigator.mediaDevices.getUserMedia || navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    console.log("enumerateDevices() not supported.");
+                    return;
+                }
+                // 列出摄像头和麦克风
+                var exArray = [];
+                navigator.mediaDevices.enumerateDevices()
+                    .then(function (devices) {
+                        devices.forEach(function (device) {
+                            // console.log(device.kind + ": " + device.label +
+                            // " id = " + device.deviceId);
+                            if (device.kind == "videoinput") {
+                                // alert(device.label);
+                                exArray.push(device.deviceId);
+                            }
+                        });
+                        var mediaOpts = { video: { width: 420, height: 120 } };
+                        var mediaOpts =
+                        {
+                            video:
+                            {
+                                deviceId: { exact: exArray[1] }
+                            }
+                        };
+                        //调用用户媒体设备, 访问摄像头
+                        getUserMedia(mediaOpts, success, error);
+                    })
+                    .catch(function (err) {
+                        console.log(err.name + ": " + err.message);
+                    });
+
+            } else {
+                alert('不支持访问用户媒体');
+            }
+
+            document.getElementById('add').addEventListener('click', async function () {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(video, 0, 0, 640, 480);
+                var image = new Image();
+                image.src = canvas.toDataURL("image/jpeg");
+                // console.log(image.src);
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                var facename = prompt('请输入您的姓名');
+                if (facename !== null && facename != '') {
+                    $.ajax({
+                        type: 'post',
+                        url: '/add',
+                        async: true,
+                        data: { name: facename, image: image.src },
+                        success: function (res) {
+                            alert('添加成功');
+                        }
+                    })
+                }
+            });
+
+            setInterval(() => {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(video, 0, 0, 640, 480);
+                var image = new Image();
+                image.src = canvas.toDataURL("image/jpeg");
+                // console.log(image.src);
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                if (visaudio) return;
+                $.ajax({
+                    type: 'post',
+                    url: '/detect_mask_face',
+                    async: true,
+                    data: { image: image.src },// image.src base64
+                    success: function (res) {
+                        console.log(res);
+                        if (Number(res) > 0) {
+                            $.ajax({
+                                type: 'post',
+                                url: '/reco_face',
+                                async: true,
+                                data: { image: image.src },// image.src base64
+                                success: function (res) {
+                                    console.log(res);
+                                    if (res.name.length > 0) {
+                                        pos = res.face_locations[0];
+                                        facename = res.name[0];
+
+                                        var top = pos[1], right = pos[0], bottom = pos[3], left = pos[2];
+
+                                        ul = document.getElementsByTagName("ul")[0];  //获取列表结构
+                                        var lis = ul.getElementsByTagName("li");  //获取列表结构的所有列表项
+                                        lis[0].innerText = facename;  //替换文本
+                                    }
+                                    else {
+                                        RecognitionAudio();
+                                    }
+                                }
+                            })
+                        }
+                        else {
+                            ul = document.getElementsByTagName("ul")[0];  //获取列表结构
+                            var lis = ul.getElementsByTagName("li");  //获取列表结构的所有列表项
+                            lis[0].innerText = "未检测到人脸";
+                        }
+                    }
+                })
+            }, 1000)
+        }
+
+        var recorder;
+        var audio = document.querySelector('audio');
+        var visaudio = false;
+        function RecognitionAudio() {
+            if (visaudio) return;
+            visaudio = true;
+            HZRecorder.get(function (rec) {
+                console.log(rec);
+                recorder = rec;
+                recorder.start();
+                console.log('audio start')
+                setTimeout(() => {
+                    recorder.stop();
+                    console.log('audio stop')
+                    uploadAudio2();
+                    visaudio = false;
+                }, 5000);
+            });
+        }
+        // function stopRecording() {
+        //     recorder.stop();
+        // }
+        // function playRecording() {
+        //     recorder.play(audio);
+        // }
+        // function cancelAudio() {
+        //     recorder.stop();
+        //     recorder.clear();
+        // }
+        function uploadAudio1() {
+            recorder.upload("/upload_audio1", function (state, e) {
+                switch (state) {
+
+                    case 'uploading':
+                        //var percentComplete = Math.round(e.loaded * 100 / e.total) + '%';
+                        break;
+                    case 'ok':
+                        //alert(e.target.responseText);
+                        $(function () {
+                            // 直接发起$.post(URL, data, [callback])
+                            var audioname = prompt('请输入您的姓名');
+                            if (audioname !== null && audioname != '') {
+                                $.ajax({
+                                    type: 'post',
+                                    url: '/upload_name',
+                                    async: true,
+                                    data: { name: audioname },
+                                    success: function (res) {
+                                        alert('e:' + e);
+                                    }
+                                })
+                            }
+                        });
+                        break;
+                    case 'error':
+                        alert("上传失败");
+                        break;
+                    case 'cancel':
+                        alert("上传被取消");
+                        break;
+                }
+            });
+        }
+        function uploadAudio2() {
+            recorder.upload("/upload_audio2", function (state, e) {
+                switch (state) {
+                    case 'uploading':
+                        //var percentComplete = Math.round(e.loaded * 100 / e.total) + '%';
+                        break;
+                    case 'ok':
+                        //alert(e.target.responseText);
+                        alert(e);
+                        break;
+                    case 'error':
+                        alert("上传失败");
+                        break;
+                    case 'cancel':
+                        alert("上传被取消");
+                        break;
+                }
+            });
+        }
+
+    </script>
+</body>
+
+</html>

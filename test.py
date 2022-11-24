@@ -1,5 +1,7 @@
 from ffmpy import FFmpeg as mpy
 import os
+import app
+from PIL import Image
 
 
 def trans_to_wav(mp3_path):
@@ -26,5 +28,11 @@ def trans_to_wav(mp3_path):
 
 
 if __name__ == '__main__':
-    trans_to_wav('tmp.mp3')
+    import numpy as np
+    import cv2
+    img = Image.open("face/zzq.jpg")
+    img = np.array(img)
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    res = app.detectionmaskface(img)
+    print(res)
     pass
