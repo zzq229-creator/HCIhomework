@@ -26,12 +26,18 @@ def index():
 def camera():
     return render_template("camera.html", )  # 加入变量传递
 
+
 @app.route('/tot')
 def functot():
     return render_template("tot.html", )  # 加入变量传递
 
-# You can change this to any folder on your system
 
+@app.route('/root')
+def root():
+    return render_template("root.html", )  # 加入变量传递
+
+
+# You can change this to any folder on your system
 known_face_encodings, known_face_names = [], []
 
 
@@ -67,7 +73,8 @@ def detect_faces_in_image(img):  # numpy * * 3
     face_name = []
     for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
         # See if the face is a match for the known face(s)
-        matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+        matches = face_recognition.compare_faces(
+            known_face_encodings, face_encoding)
 
         name = "Unknown"
 
@@ -77,7 +84,8 @@ def detect_faces_in_image(img):  # numpy * * 3
         #     name = known_face_names[first_match_index]
 
         # Or instead, use the known face with the smallest distance to the new face
-        face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+        face_distances = face_recognition.face_distance(
+            known_face_encodings, face_encoding)
         best_match_index = np.argmin(face_distances)
         if matches[best_match_index]:
             name = known_face_names[best_match_index]
@@ -85,6 +93,40 @@ def detect_faces_in_image(img):  # numpy * * 3
     print({'face_locations': face_locations, 'name': face_name})
     res = jsonify({'face_locations': face_locations, 'name': face_name})
     return res
+
+
+def load_list():
+    lst = os.listdir('./face')
+    res = []
+    for item in lst:
+        res.append(item.replace('.jpg', ''))
+    lst = os.listdir('./audio_db')
+    for item in lst:
+        res.append(item.replace('.wav', ''))
+    res = sorted(list(set(res)))
+    return res
+
+
+@app.route('/load_sign_logs', methods=['POST'])
+def load_sign_logs():
+    tmp = np.loadtxt("logs.csv", dtype=np.str, delimiter=",")
+    print(tmp)
+    res = tmp.reshape(-1)
+    print(res)
+    return res.tolist()
+
+
+@app.route('/save_sign_logs', methods=['POST'])
+def save_sign_logs():
+    logsinfo = request.form['info'].split()
+    logs = np.array(logsinfo).reshape(-1, 3)
+    np.savetxt("logs.csv", logs, delimiter=",", fmt="%s")
+    return "Done"
+
+
+@app.route('/load_name_list', methods=['POST'])
+def load_name_list():
+    return load_list()
 
 
 @app.route('/detect_mask_face', methods=['POST'])

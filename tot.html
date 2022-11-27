@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<script src="https://cdn.bootcss.com/jquery/3.4.1/jquery.js"></script>
+
+<head>
+    <meta charset="utf-8">
+    <title>camera</title>
+    <style>
+        .container {
+            margin: 0 auto;
+            position: absolute;
+            border-radius: 25px;
+            width: 1024px;
+            height: 768px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-70%,-50%);
+        }
+
+        .video {
+            width: 1024px;
+            height: 768px;
+            position: fixed;
+            border-radius: 25px;
+        }
+
+        .canvas {
+            position: fixed;
+            border-radius: 25px;
+            z-index: 10;
+            position: absolute;
+            border:1px solid red; 
+        }
+        
+        .information {
+            position: absolute;
+            top: 200px;
+            left: 1200px;
+            right: 50px;
+            font-weight: 500;
+            font-size: 25px;
+            text-align: center;
+            
+        }
+        .nowtime {
+            background-color: black;
+            position: absolute;
+            top: 100px;
+            left: 1250px;
+            right: 50px;
+            font-weight: 500;
+            font-size: 25px;
+            text-align: center;
+            color: #fff;
+
+        }
+        .namelist{
+            /* background-color: blueviolet; */
+            position: absolute;
+            top: 300px;
+            left: 1150px;
+            font-weight: 500;
+            font-size: 20px;
+            text-align: center;
+            width: 200px;
+            line-height: 35px;
+        }
+        .signlist{
+            /* background-color: rgb(43, 226, 171); */
+            position: absolute;
+            top: 300px;
+            left: 1350px;
+            font-weight: 500;
+            font-size: 20px;
+            text-align: center;
+            width: 200px;
+            line-height: 35px;
+        }
+        .signtlist{
+            /* background-color: blue; */
+            position: absolute;
+            top: 300px;
+            left: 1550px;
+            font-weight: 500;
+            font-size: 20px;
+            text-align: center;
+            width: 200px;
+            line-height: 35px;
+        }
+
+    </style>
+</head>
+
+
+<body>
+
+    <div class="nowtime" id="nowtime"></div>
+    <div>
+        <audio controls autoplay hidden = "hidden"></audio>
+        <!-- <input onclick="startRecording()" type="button" value="录音" /> -->
+        <!-- <input onclick="stopRecording()" type="button" value="停止" /> -->
+        <!-- <input onclick="playRecording()" type="button" value="播放" /> -->
+        <!-- <input onclick="uploadAudio1()" type="button" value="注册" /> -->
+        <!-- <input onclick="uploadAudio2()" type="button" value="识别" /> -->
+        <!-- <input onclick="cancelAudio()" type="button" value="取消" /> -->
+    </div>
+
+    <button id="add" class="btn btn-success" hidden = "hidden"><i class="fa fa-camera"></i> 添加</button>
+
+    <div class="container" id = "hci">
+        <video class="video" id="video" width="640" height="480" autoplay></video>
+        <canvas class="canvas" id="canvas" width="640" height="480"></canvas>
+
+    </div>
+    <div class = "information" id = "information">
+        <ul >
+            <li id = "info" style="list-style-type:none"></li>
+        </ul>
+    </div>
+    </div>
+    <div class = "namelist" id = "namelist">
+        <ul id = "allname">
+        </ul>
+    </div>
+    <div class="signlist" id="signlist">
+        <ul id="sign">
+        </ul>
+    </div>
+
+    </div>
+    <div class="signtlist" id="signtlist">
+        <ul id="signtime">
+        </ul>
+    </div>
+    <script type="text/javascript" src="{{ url_for('static',filename='record.js') }}"></script>
+
+    <script>
+        function sleep(time) {
+            return new Promise(function (resolve) {
+                setTimeout(resolve, time);
+            });
+        }
+        window.onload = function () {
+            //访问用户媒体设备的兼容方法
+            function getUserMedia(constraints, success, error) {
+                if (navigator.mediaDevices.getUserMedia) {
+                    //最新的标准API
+                    navigator.mediaDevices.getUserMedia(constraints).then(success).catch(error);
+                } else if (navigator.webkitGetUserMedia) {
+                    //webkit核心浏览器
+                    navigator.webkitGetUserMedia(constraints, success, error)
+                } else if (navigator.mozGetUserMedia) {
+                    //firfox浏览器
+                    navigator.mozGetUserMedia(constraints, success, error);
+                } else if (navigator.getUserMedia) {
+                    //旧版API
+                    navigator.getUserMedia(constraints, success, error);
+                }
+            }
+
+            var video = document.getElementById('video');
+            var canvas = document.getElementById('canvas');
+            var context = canvas.getContext('2d');
+            function success(stream) {
+                //兼容webkit核心浏览器
+                //let CompatibleURL = window.URL || window.webkitURL;
+                //将视频流设置为video元素的源
+                // console.log(stream);
+                //video.src = CompatibleURL.createObjectURL(stream);
+                video.srcObject = stream;
+                video.play();
+            }
+            function error(error) {
+                console.log(`访问用户媒体设备失败${error.name}, ${error.message}`);
+            }
+
+            if (navigator.mediaDevices.getUserMedia || navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia) {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+                    console.log("enumerateDevices() not supported.");
+                    return;
+                }
+                // 列出摄像头和麦克风
+                var exArray = [];
+                navigator.mediaDevices.enumerateDevices()
+                    .then(function (devices) {
+                        devices.forEach(function (device) {
+                            // console.log(device.kind + ": " + device.label +
+                            // " id = " + device.deviceId);
+                            if (device.kind == "videoinput") {
+                                // alert(device.label);
+                                exArray.push(device.deviceId);
+                            }
+                        });
+                        var mediaOpts = { video: { width: 420, height: 120 } };
+                        var mediaOpts =
+                        {
+                            video:
+                            {
+                                deviceId: { exact: exArray[1] }
+                            }
+                        };
+                        //调用用户媒体设备, 访问摄像头
+                        getUserMedia(mediaOpts, success, error);
+                    })
+                    .catch(function (err) {
+                        console.log(err.name + ": " + err.message);
+                    });
+
+            } else {
+                alert('不支持访问用户媒体');
+            }
+
+            document.getElementById('add').addEventListener('click', async function () {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(video, 0, 0, 640, 480);
+                var image = new Image();
+                image.src = canvas.toDataURL("image/jpeg");
+                // console.log(image.src);
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                var facename = prompt('请输入您的姓名');
+                if (facename !== null && facename != '') {
+                    $.ajax({
+                        type: 'post',
+                        url: '/add',
+                        async: true,
+                        data: { name: facename, image: image.src },
+                        success: function (res) {
+                            alert('添加成功');
+                        }
+                    })
+                }
+            });
+
+            setInterval(() => {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                context.drawImage(video, 0, 0, 640, 480);
+                var image = new Image();
+                image.src = canvas.toDataURL("image/jpeg");
+                // console.log(image.src);
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                if (visaudio) return;
+                $.ajax({
+                    type: 'post',
+                    url: '/detect_mask_face',
+                    async: true,
+                    data: { image: image.src },// image.src base64
+                    success: function (res) {
+                        console.log(res);
+                        if (Number(res) > 0) {
+                            $.ajax({
+                                type: 'post',
+                                url: '/reco_face',
+                                async: true,
+                                data: { image: image.src },// image.src base64
+                                success: function (res) {
+                                    console.log(res);
+                                    if (res.name.length > 0) {
+                                        pos = res.face_locations[0];
+                                        facename = res.name[0];
+                                        
+                                        var top = pos[0]*1.6, right = pos[1]*1.6, bottom = pos[2]*1.6, left = pos[3]*1.6;
+                                        console.log(top,bottom,left,right)
+                                        document.getElementById('canvas').style.top = top+'px';
+                                        
+                                        document.getElementById('canvas').style.left = left+'px';
+                                        // document.getElementById('squ').style.right = right;
+                                        // document.getElementById('squ').style.bottom = bottom;
+                                        document.getElementById('canvas').style.width = (right-left)+'px';
+                                        document.getElementById('canvas').style.height = (bottom-top)+'px';
+                                        showInfo(facename)                         
+                                    }
+                                    else {
+                                        RecognitionAudio();
+                                    }
+                                }
+                            })
+                        }
+                        else {
+                            document.getElementById("info").innerText = "未检测到人脸";
+                        }
+                    }
+                })
+            }, 1000)
+        }
+
+        var recorder;
+        var audio = document.querySelector('audio');
+        var visaudio = false;
+        function RecognitionAudio() {
+            if (visaudio) return;
+            visaudio = true;
+            HZRecorder.get(function (rec) {
+                console.log(rec);
+                recorder = rec;
+                recorder.start();
+                console.log('audio start')
+                setTimeout(() => {
+                    recorder.stop();
+                    console.log('audio stop')
+                    uploadAudio2();
+                    visaudio = false;
+                }, 5000);
+            });
+        }
+        // function stopRecording() {
+        //     recorder.stop();
+        // }
+        // function playRecording() {
+        //     recorder.play(audio);
+        // }
+        // function cancelAudio() {
+        //     recorder.stop();
+        //     recorder.clear();
+        // }
+        function uploadAudio1() {
+            recorder.upload("/upload_audio1", function (state, e) {
+                switch (state) {
+
+                    case 'uploading':
+                        //var percentComplete = Math.round(e.loaded * 100 / e.total) + '%';
+                        break;
+                    case 'ok':
+                        //alert(e.target.responseText);
+                        $(function () {
+                            // 直接发起$.post(URL, data, [callback])
+                            var audioname = prompt('请输入您的姓名');
+                            if (audioname !== null && audioname != '') {
+                                $.ajax({
+                                    type: 'post',
+                                    url: '/upload_name',
+                                    async: true,
+                                    data: { name: audioname },
+                                    success: function (res) {
+                                        alert('e:' + e);
+                                    }
+                                })
+                            }
+                        });
+                        break;
+                    case 'error':
+                        alert("上传失败");
+                        break;
+                    case 'cancel':
+                        alert("上传被取消");
+                        break;
+                }
+            });
+        }
+        function uploadAudio2() {
+            recorder.upload("/upload_audio2", function (state, e) {
+                switch (state) {
+                    case 'uploading':
+                        //var percentComplete = Math.round(e.loaded * 100 / e.total) + '%';
+                        break;
+                    case 'ok':
+                        //alert(e.target.responseText);
+                        showInfo(e)
+                        break;
+                    case 'error':
+                        alert("上传失败");
+                        break;
+                    case 'cancel':
+                        alert("上传被取消");
+                        break;
+                }
+            });
+        }
+
+    </script>
+
+    <script>
+        function showInfo(personname) {
+            if (personname == '未在音频库') {
+                document.getElementById('info').style.color = "#000";
+                personname = personname+"请联系管理员";
+            }
+            else if (personname == 'Unknown') {
+                personname = "人脸匹配失败，请声纹签到";
+                document.getElementById('info').style.color = "#000";
+            }
+            else {
+                hour = new Date().getHours()
+                if (hour < 8 || hour > 17) {
+                    document.getElementById('info').style.color = "#0f0";
+                    signature = hour < 8 ? ' 签到成功' : ' 签退成功';
+                }
+                else {
+                    document.getElementById('info').style.color = "#f00";
+                    signature = hour < 12 ? ' 迟到' : ' 早退';
+                }
+                now = getTime(2)
+                len_name = document.getElementById('allname').getElementsByTagName('li').length
+                len_sign = document.getElementById('sign').getElementsByTagName('li').length
+                console.log(len_name)
+                console.log(len_sign)
+                for (var i = 0; i < len_name - len_sign; i++) {
+                    var li = document.createElement('li');
+                    nowhour = new Date().getHours()
+                    li.innerText = nowhour < 8 ? '未签到' : '未签退';
+                    li.setAttribute("style", "list-style-type:none");
+                    document.getElementById('sign').appendChild(li);
+                    var li2 = document.createElement('li');
+                    li2.innerText = '--:--:--';
+                    li2.setAttribute("style", "list-style-type:none");
+                    document.getElementById('signtime').appendChild(li2);
+                    console.log(li.textContent)
+                }
+                for (var i = 0; i < len_name; i++) {
+                    var nowname = document.getElementById('allname').getElementsByTagName('li')[i].textContent;
+                    if (nowname == personname) {
+                        document.getElementById('sign').getElementsByTagName('li')[i].innerText = signature;
+                        document.getElementById('signtime').getElementsByTagName('li')[i].innerText = now;
+                        break;
+                    }
+                }
+                personname = personname + signature;
+                saveLogs();
+            }
+            document.getElementById('info').innerText = personname;  //替换文本     
+            return;
+        }
+        function signTime() {
+            var hour = new Date().getHours();
+            if (hour < 8) {
+                return "签到成功"
+            }
+            else if (hour < 12) {
+                return "迟到"
+            }
+            else if (hour < 17) {
+                return "早退"
+            }
+            else {
+                return "签退成功"
+            }
+        }
+        function getTime(work) {
+            var date = new Date();
+            var year = date.getFullYear(); //获取年份
+            var month = date.getMonth() + 1; //获取月份
+            var day = date.getDate(); //获取日期
+            var hour = date.getHours(); //获取小时
+            hour = hour < 10 ? '0' + hour : hour;
+            var minute = date.getMinutes(); // 获取分
+            minute = minute < 10 ? '0' + minute : minute;
+            var seconds = date.getSeconds(); //获取秒
+            seconds = seconds < 10 ? '0' + seconds : seconds;
+            if (work == 1) {
+                return year + ' 年' + month + ' 月' + day + ' 日&nbsp;' + hour + ':' + minute + ':' + seconds;
+            }
+            else {
+                return hour + ':' + minute + ':' + seconds
+            }
+        }
+
+        setInterval(function () {
+            document.getElementById('nowtime').innerHTML = getTime(1);
+        }, 1000)
+    </script>
+    <script>
+        function getNameList() {
+            $.ajax({
+                type: 'post',
+                url: '/load_name_list',
+                async: true,
+                success: function (res) {
+                    console.log(res);
+                    document.getElementById('allname').innerHTML = ""
+                    for (var i = 0; i < res.length; i++) {
+                        var li = document.createElement('li');
+                        li.innerText = res[i];
+                        li.setAttribute("style", "list-style-type:none");
+                        // 将新创建的li追加到父元素ul中
+                        document.getElementById('allname').appendChild(li);
+
+
+                    }
+                    return res
+
+                },
+                error: function (res) {
+                    alert('获取名单失败')
+                }
+            })
+
+        }
+        setInterval(function () {
+            getNameList();
+        }, 1000)
+    </script>
+    <script>
+        function saveLogs() {
+            logsinfo = document.getElementById('allname').getElementsByTagName('li')[0].textContent
+
+            var len =document.getElementById('sign').getElementsByTagName('li').length;
+            for (var i = 0;i<len;i++){
+                if(i!=0)
+                    logsinfo+= ' ' +document.getElementById('allname').getElementsByTagName('li')[i].textContent
+                logsinfo+= ' ' +document.getElementById('sign').getElementsByTagName('li')[i].textContent
+                logsinfo+= ' ' +document.getElementById('signtime').getElementsByTagName('li')[i].textContent
+            }
+            console.log(logsinfo)
+                $.ajax({
+                    type: 'post',
+                    url: '/save_sign_logs',
+                    async: true,
+                    data: { info: logsinfo},
+                    success: function (res) {
+                        console.log(res);
+                        return res
+
+                    },
+                    error: function (res) {
+                        alert('记录日志失败')
+                    }
+                })
+
+            }
+    </script>
+</body>
+
+</html>
